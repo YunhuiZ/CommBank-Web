@@ -11,174 +11,61 @@ import { selectGoalsMap, updateGoal as updateGoalRedux } from '../../../store/go
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import DatePicker from '../../components/DatePicker'
 import { Theme } from '../../components/Theme'
+import EmojiPicker from '../../components/EmojiPicker'
 
-type Props = { goal: Goal }
-export function GoalManager(props: Props) {
-  const dispatch = useAppDispatch()
+type Goal = {
+  id: string;
+  name: string;
+  targetDate: Date;
+  targetAmount: number;
+  icon: string;
+};
 
-  const goal = useAppSelector(selectGoalsMap)[props.goal.id]
+type Props = { goal: Goal };
 
-  const [name, setName] = useState<string | null>(null)
-  const [targetDate, setTargetDate] = useState<Date | null>(null)
-  const [targetAmount, setTargetAmount] = useState<number | null>(null)
+type EmojiPickerContainerProps = { isOpen: boolean; hasIcon: boolean };
 
-  useEffect(() => {
-    setName(props.goal.name)
-    setTargetDate(props.goal.targetDate)
-    setTargetAmount(props.goal.targetAmount)
-  }, [
-    props.goal.id,
-    props.goal.name,
-    props.goal.targetDate,
-    props.goal.targetAmount,
-  ])
+const EmojiPickerContainer = styled.div<EmojiPickerContainerProps>`
+  display: ${(props) => (props.isOpen ? 'flex' : 'none')};
+  position: absolute;
+  top: ${(props) => (props.hasIcon ? '10rem' : '2rem')};
+  left: 0;
+`;
 
-  useEffect(() => {
-    setName(goal.name)
-  }, [goal.name])
+export function GoalManager({ goal }: Props) {
+  const [emojiPickerIsOpen, setEmojiPickerIsOpen] = useState(false);
+  const [icon, setIcon] = useState(goal.icon);
+  const dispatch = useAppDispatch();
 
-  const updateNameOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextName = event.target.value
-    setName(nextName)
+  const hasIcon = () => icon != null;
+
+  const pickEmojiOnClick = (emoji: BaseEmoji, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setIcon(emoji.native);
+    setEmojiPickerIsOpen(false);
+
     const updatedGoal: Goal = {
-      ...props.goal,
-      name: nextName,
-    }
-    dispatch(updateGoalRedux(updatedGoal))
-    updateGoalApi(props.goal.id, updatedGoal)
-  }
+      ...goal,
+      icon: emoji.native ?? goal.icon,
+    };
 
-  const updateTargetAmountOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextTargetAmount = parseFloat(event.target.value)
-    setTargetAmount(nextTargetAmount)
-    const updatedGoal: Goal = {
-      ...props.goal,
-      name: name ?? props.goal.name,
-      targetDate: targetDate ?? props.goal.targetDate,
-      targetAmount: nextTargetAmount,
-    }
-    dispatch(updateGoalRedux(updatedGoal))
-    updateGoalApi(props.goal.id, updatedGoal)
-  }
+    dispatch(updateGoalRedux(updatedGoal));
 
-  const pickDateOnChange = (date: MaterialUiPickersDate) => {
-    if (date != null) {
-      setTargetDate(date)
-      const updatedGoal: Goal = {
-        ...props.goal,
-        name: name ?? props.goal.name,
-        targetDate: date ?? props.goal.targetDate,
-        targetAmount: targetAmount ?? props.goal.targetAmount,
-      }
-      dispatch(updateGoalRedux(updatedGoal))
-      updateGoalApi(props.goal.id, updatedGoal)
-    }
-  }
+    // TODO: Update database
+  };
 
   return (
-    <GoalManagerContainer>
-      <NameInput value={name ?? ''} onChange={updateNameOnChange} />
-
-      <Group>
-        <Field name="Target Date" icon={faCalendarAlt} />
-        <Value>
-          <DatePicker value={targetDate} onChange={pickDateOnChange} />
-        </Value>
-      </Group>
-
-      <Group>
-        <Field name="Target Amount" icon={faDollarSign} />
-        <Value>
-          <StringInput value={targetAmount ?? ''} onChange={updateTargetAmountOnChange} />
-        </Value>
-      </Group>
-
-      <Group>
-        <Field name="Balance" icon={faDollarSign} />
-        <Value>
-          <StringValue>{props.goal.balance}</StringValue>
-        </Value>
-      </Group>
-
-      <Group>
-        <Field name="Date Created" icon={faCalendarAlt} />
-        <Value>
-          <StringValue>{new Date(props.goal.created).toLocaleDateString()}</StringValue>
-        </Value>
-      </Group>
-    </GoalManagerContainer>
-  )
+    <>
+      {/* Other parts of the component */}
+      <button onClick={() => setEmojiPickerIsOpen(!emojiPickerIsOpen)}>Pick Emoji</button>
+      <EmojiPickerContainer
+        isOpen={emojiPickerIsOpen}
+        hasIcon={hasIcon()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <EmojiPicker onClick={pickEmojiOnClick} />
+      </EmojiPickerContainer>
+      {/* Other parts of the component */}
+    </>
+  );
 }
-
-type FieldProps = { name: string; icon: IconDefinition }
-type AddIconButtonContainerProps = { shouldShow: boolean }
-type GoalIconContainerProps = { shouldShow: boolean }
-type EmojiPickerContainerProps = { isOpen: boolean; hasIcon: boolean }
-
-const Field = (props: FieldProps) => (
-  <FieldContainer>
-    <FontAwesomeIcon icon={props.icon} size="2x" />
-    <FieldName>{props.name}</FieldName>
-  </FieldContainer>
-)
-
-const GoalManagerContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: flex-start;
-  height: 100%;
-  width: 100%;
-  position: relative;
-`
-
-const Group = styled.div`
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  margin-top: 1.25rem;
-  margin-bottom: 1.25rem;
-`
-const NameInput = styled.input`
-  display: flex;
-  background-color: transparent;
-  outline: none;
-  border: none;
-  font-size: 4rem;
-  font-weight: bold;
-  color: ${({ theme }: { theme: Theme }) => theme.text};
-`
-
-const FieldName = styled.h1`
-  font-size: 1.8rem;
-  margin-left: 1rem;
-  color: rgba(174, 174, 174, 1);
-  font-weight: normal;
-`
-const FieldContainer = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: 20rem;
-
-  svg {
-    color: rgba(174, 174, 174, 1);
-  }
-`
-const StringValue = styled.h1`
-  font-size: 1.8rem;
-  font-weight: bold;
-`
-const StringInput = styled.input`
-  display: flex;
-  background-color: transparent;
-  outline: none;
-  border: none;
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: ${({ theme }: { theme: Theme }) => theme.text};
-`
-
-const Value = styled.div`
-  margin-left: 2rem;
-`
